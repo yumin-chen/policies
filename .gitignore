@@ -1,0 +1,6 @@
+# Generated Files
+policy_report.json
+
+# Python
+__pycache__/
+*.pyc

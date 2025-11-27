@@ -1,0 +1,13 @@
+{
+    "axios": {
+        "ignore_all": false,
+        "notes": "Widely used and trusted library for making HTTP requests.",
+        "overrides": {
+            "license": "MIT"
+        }
+    },
+    "internal-framework": {
+        "ignore_all": true,
+        "notes": "Internal framework, not subject to the same license checks."
+    }
+}
