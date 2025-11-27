@@ -1,94 +1,52 @@
-# Principal Decision Documents (PDDs)
+# Conftest
 
-This repository contains **Principal Decision Documents (PDDs)** for organization-wide governance, policies, and rules.  
-It serves as the **single source of truth** for all cross-project decisions and is designed for discoverability, compliance, and automation.
+[![Go Report Card](https://goreportcard.com/badge/open-policy-agent/opa)](https://goreportcard.com/report/open-policy-agent/conftest) [![Netlify](https://api.netlify.com/api/v1/badges/2d928746-3380-4123-b0eb-1fd74ba390db/deploy-status)](https://app.netlify.com/sites/vibrant-villani-65041c/deploys)
 
----
+Conftest helps you write tests against structured configuration data. Using Conftest you can
+write tests for your Kubernetes configuration, Tekton pipeline definitions, Terraform code,
+Serverless configs or any other config files.
 
-## Table of Contents
+Conftest uses the Rego language from [Open Policy Agent](https://www.openpolicyagent.org/) for writing
+the assertions. You can read more about Rego in [How do I write policies](https://www.openpolicyagent.org/docs/how-do-i-write-policies.html)
+in the Open Policy Agent documentation.
 
-- [Purpose](#purpose)  
-- [Repository Structure](#repository-structure)  
-- [Adding or Updating PDDs](#adding-or-updating-pdds)  
-- [Policy Enforcement](#policy-enforcement)  
-- [Governance and Approval](#governance-and-approval)  
-- [Reference & Links](#reference--links)
+Here's a quick example. Save the following as `policy/deployment.rego`:
 
----
+```rego
+package main
 
-## Purpose
+deny[msg] {
+  input.kind == "Deployment"
+  not input.spec.template.spec.securityContext.runAsNonRoot
 
-- Centralize all **org-wide policies** and **principal decisions**.  
-- Ensure **consistency**, **traceability**, and **compliance** across all projects.  
-- Serve as the **source of truth** for automated policy enforcement, including OPA and CI/CD checks.
+  msg := "Containers must not run as root"
+}
 
----
+deny[msg] {
+  input.kind == "Deployment"
+  not input.spec.selector.matchLabels.app
 
-## Repository Structure
-
+  msg := "Containers must provide app label for pod selectors"
+}
 ```
 
-policies/
-├── PDD-ADR-VERSIONING.md           # ADR storage & versioning policy
-├── PDD-SECURITY-GUIDELINES.md      # Security standards and protocols
-├── PDD-CODE-OWNERSHIP.md           # Code ownership and review rules
-└── README.md                       # This documentation
+Assuming you have a Kubernetes deployment in `deployment.yaml` you can run Conftest like so:
 
+```console
+$ conftest test deployment.yaml
+FAIL - deployment.yaml - Containers must not run as root
+FAIL - deployment.yaml - Containers must provide app label for pod selectors
+
+2 tests, 0 passed, 0 warnings, 2 failures, 0 exceptions
 ```
 
-- Each PDD is a separate Markdown file.  
-- Metadata headers should include:
-  - `pdd_id`  
-  - `title`  
-  - `status` (Proposed / Active / Approved)  
-  - `authors`  
-  - `date`  
-  - `scope` (Org-wide or specific projects)
+Conftest isn't specific to Kubernetes. It will happily let you write tests for any configuration files in a variety of different formats. See the [documentation](https://www.conftest.dev/) for [installation instructions](https://www.conftest.dev/install/) and
+more details about the features.
 
----
+## Want to contribute to Conftest?
 
-## Adding or Updating PDDs
+* See [DEVELOPMENT.md](DEVELOPMENT.md) to build and test Conftest itself.
+* See [CONTRIBUTING.md](CONTRIBUTING.md) to get started.
 
-1. Create a new Markdown file following the naming convention:  
-   `PDD-<TITLE>.md`  
-
-2. Include **metadata headers** at the top of the file.  
-
-3. Follow the **PDD template**:
-   - Purpose  
-   - Principles  
-   - Enforcement Mechanisms  
-   - Governance  
-   - Rationale  
-
-4. Submit a **pull request** for review and approval.  
-
-5. Upon approval, the PDD is merged and becomes **effective immediately**, unless otherwise stated.
-
----
-
-## Policy Enforcement
-
-- Automated checks can reference this repository for **OPA policy evaluation**, CI/CD validations, and audit reporting.  
-- Example enforcement includes:  
-  - Validating ADR storage (full + compact Markdown versions)  
-  - Ensuring project compliance with org-wide standards  
-  - Automatic rejection of non-compliant pull requests  
-
----
-
-## Governance and Approval
-
-- **Decision Authority:** System Architecture Council or equivalent org-wide governance body  
-- **Review Process:** All proposed PDDs must go through formal review and approval via pull request  
-- **Exceptions:** Only allowed via council resolution  
-
----
-
-## Reference & Links
-
-- [PDD Template](./TEMPLATE-PDD.md) — For creating new Principal Decision Documents  
-- [OPA Policies](../opa-policies/) — Example Rego policies enforcing PDD rules  
-- [SDLC_IDE ADRs](../adrs/) — Related project-level ADR repository
-```
-
+For discussions and questions join us on the [Open Policy Agent Slack](https://slack.openpolicyagent.org/)
+in the `#opa-conftest` channel.
