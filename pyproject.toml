@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "sample-project"
+version = "0.1.0"
+description = ""
+authors = ["Your Name <you@example.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+requests = "^2.28.1"
+toml = "^0.10.2"
+# This one has a non-OSI approved license
+PyQt5 = "^5.15.7"
+pynput = "1.7.6" # Non-compliant license for testing exceptions
+
+[tool.poetry.dev-dependencies]
+pytest = "^7.1.3"

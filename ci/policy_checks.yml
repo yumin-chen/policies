@@ -1,0 +1,49 @@
+# File: ci/policy_checks.yml
+name: Technology Policy Enforcement
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+
+jobs:
+  enforce_tech_policy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.11
+
+      - name: Install Python dependencies and tools
+        run: |
+          pip install poetry pip-licenses pytest toml
+          poetry install --no-root
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install Node.js dependencies and tools
+        run: npm install
+
+      - name: Set up Java and Maven
+        uses: actions/setup-java@v3
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Generate Java license report
+        run: mvn license:download-licenses
+
+      - name: Run tests
+        run: python ci/check_tech_policy.py test
+
+      - name: Run Technology Recommendation Policy Check
+        run: |
+          python ci/check_tech_policy.py
