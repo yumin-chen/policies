@@ -1,0 +1,53 @@
+stages:
+  - validate
+  - deploy
+
+schema-validation:
+  stage: validate
+  image: python:3.10
+  before_script:
+    - pip install jsonschema
+    - apt-get update && apt-get install -y wget jq
+    - wget https://github.com/open-policy-agent/conftest/releases/download/v0.46.0/conftest_0.46.0_Linux_x86_64.tar.gz
+    - tar xf conftest_0.46.0_Linux_x86_64.tar.gz
+    - mv conftest /usr/local/bin/conftest
+  script:
+    - echo "Validating JSON syntax..."
+    - find docs/events/schema-registry -name "*.json" -print0 | xargs -0 -I {} sh -c "jq empty {}"
+    - echo "Running OPA/Conftest rules..."
+    - conftest test docs/events/schema-registry --policy policies
+    - echo "Validating sample events (if present)..."
+    - |
+      if ls docs/events/samples/*.json 1> /dev/null 2>&1; then
+        for f in docs/events/samples/*.json; do
+          schema="docs/events/schema-registry/$(jq -r .type $f)_v1.json"
+          echo "Validating $f -> $schema"
+          jsonschema -i "$f" "$schema"
+        done
+      else
+        echo "No sample events found to validate."
+      fi
+  artifacts:
+    paths:
+      - docs/
+
+register-schemas:
+  stage: deploy
+  image: curlimages/curl:latest
+  script:
+    - |
+      if ls docs/events/schema-registry/*.json 1> /dev/null 2>&1; then
+        for f in docs/events/schema-registry/*.json; do
+          subject=$(basename $f .json)
+          echo "Registering $subject"
+          curl -X POST \
+            -H "Content-Type: application/json" \
+            --data @"$f" \
+            "$SCHEMA_REGISTRY_URL/subjects/$subject/versions" \
+            -u "$SCHEMA_REGISTRY_KEY:$SCHEMA_REGISTRY_SECRET"
+        done
+      else
+        echo "No schemas found to register."
+      fi
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
