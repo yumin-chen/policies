@@ -1,0 +1,52 @@
+name: Policy Check
+
+on:
+  pull_request:
+    paths:
+      - 'policy/**'
+      - 'templates/**'
+
+jobs:
+  opa-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Run OPA tests
+        uses: open-policy-agent/setup-opa@v2
+        with:
+          version: 0.50.0
+      - run: opa test policy/
+
+  opa-eval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Run OPA eval
+        uses: open-policy-agent/setup-opa@v2
+        with:
+          version: 0.50.0
+      - name: Get changed templates
+        id: changed-files
+        uses: tj-actions/changed-files@v35
+        with:
+          files: templates/**
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+      - name: Run opa eval
+        run: |
+          for f in ${{ steps.changed-files.outputs.all_changed_files }}; do
+            echo "Checking $f"
+            input=$(jq -n --slurpfile template "$f" \
+              '{
+                "action": "register_template",
+                "actor": {"principal_id": "github:alice", "roles": ["template_author"]},
+                "template": $template[0]
+              }')
+            result=$(echo "$input" | opa eval --data policy/ --input - "data.template.authz.allow")
+            if [[ "$result" != "true" ]]; then
+              echo "Policy denial for $f"
+              reasons=$(echo "$input" | opa eval --data policy/ --input - "data.template.authz.reasons")
+              echo "Reasons: $reasons"
+              exit 1
+            fi
+          done
