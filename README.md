@@ -1,94 +1,29 @@
-# Principal Decision Documents (PDDs)
+# Policy-as-Code Prototype
 
-This repository contains **Principal Decision Documents (PDDs)** for organization-wide governance, policies, and rules.  
-It serves as the **single source of truth** for all cross-project decisions and is designed for discoverability, compliance, and automation.
+This repository contains a prototype for a policy-as-code system using Open Policy Agent (OPA). It includes an Express.js API that enforces policies, a set of Rego policies, and a Docker Compose setup for local development and testing.
 
----
+## Architecture
 
-## Table of Contents
+The system is composed of two main services that run in Docker containers:
 
-- [Purpose](#purpose)  
-- [Repository Structure](#repository-structure)  
-- [Adding or Updating PDDs](#adding-or-updating-pdds)  
-- [Policy Enforcement](#policy-enforcement)  
-- [Governance and Approval](#governance-and-approval)  
-- [Reference & Links](#reference--links)
+1.  **OPA Server (`opa`):** This is the policy engine. It loads all the Rego policies and data from the `/opa/policies` directory. It exposes an HTTP API to evaluate policies.
+2.  **Registry API (`registry-api`):** This is an Express.js application that serves as the policy enforcement point. When it receives a request to register a template, it queries the OPA server to determine if the request is allowed.
 
----
+### Request Flow
 
-## Purpose
+1.  A client sends a `POST` request to the `/templates` endpoint of the **Registry API** with a template payload.
+2.  The `enforcePolicyMiddleware` in the Express app intercepts the request.
+3.  The middleware constructs an `input` object containing the request details (action, actor, template) and sends it to the **OPA Server's** `/v1/data/template/authz/allow` endpoint.
+4.  The **OPA Server** evaluates the `allow` rule in the `allow_template_rego.rego` policy against the provided input.
+5.  OPA returns a decision (`true` or `false`).
+6.  If the decision is `true`, the middleware passes the request to the next handler. If `false`, it returns a `403 Forbidden` error.
 
-- Centralize all **org-wide policies** and **principal decisions**.  
-- Ensure **consistency**, **traceability**, and **compliance** across all projects.  
-- Serve as the **source of truth** for automated policy enforcement, including OPA and CI/CD checks.
+## Running the Prototype
 
----
+To run the prototype locally, you need to have Docker and Docker Compose installed. Then, from the root of the repository, you can start the services using the following command:
 
-## Repository Structure
-
+```bash
+docker-compose -f infrastructure/docker-compose.yml up
 ```
 
-policies/
-├── PDD-ADR-VERSIONING.md           # ADR storage & versioning policy
-├── PDD-SECURITY-GUIDELINES.md      # Security standards and protocols
-├── PDD-CODE-OWNERSHIP.md           # Code ownership and review rules
-└── README.md                       # This documentation
-
-```
-
-- Each PDD is a separate Markdown file.  
-- Metadata headers should include:
-  - `pdd_id`  
-  - `title`  
-  - `status` (Proposed / Active / Approved)  
-  - `authors`  
-  - `date`  
-  - `scope` (Org-wide or specific projects)
-
----
-
-## Adding or Updating PDDs
-
-1. Create a new Markdown file following the naming convention:  
-   `PDD-<TITLE>.md`  
-
-2. Include **metadata headers** at the top of the file.  
-
-3. Follow the **PDD template**:
-   - Purpose  
-   - Principles  
-   - Enforcement Mechanisms  
-   - Governance  
-   - Rationale  
-
-4. Submit a **pull request** for review and approval.  
-
-5. Upon approval, the PDD is merged and becomes **effective immediately**, unless otherwise stated.
-
----
-
-## Policy Enforcement
-
-- Automated checks can reference this repository for **OPA policy evaluation**, CI/CD validations, and audit reporting.  
-- Example enforcement includes:  
-  - Validating ADR storage (full + compact Markdown versions)  
-  - Ensuring project compliance with org-wide standards  
-  - Automatic rejection of non-compliant pull requests  
-
----
-
-## Governance and Approval
-
-- **Decision Authority:** System Architecture Council or equivalent org-wide governance body  
-- **Review Process:** All proposed PDDs must go through formal review and approval via pull request  
-- **Exceptions:** Only allowed via council resolution  
-
----
-
-## Reference & Links
-
-- [PDD Template](./TEMPLATE-PDD.md) — For creating new Principal Decision Documents  
-- [OPA Policies](../opa-policies/) — Example Rego policies enforcing PDD rules  
-- [SDLC_IDE ADRs](../adrs/) — Related project-level ADR repository
-```
-
+This will start the OPA server and the Express.js API. The API will be available at `http://localhost:3000`.
